@@ -16,7 +16,6 @@ import { ArgumentsOf } from '../types/ArgumentsOf';
 export async function handleCreateCommand(interaction: CommandInteraction, args: ArgumentsOf<typeof CreateCommand>) {
 	const {
 		user,
-		client,
 		client: { guilds },
 	} = interaction;
 	if (guilds.cache.size > 10) {

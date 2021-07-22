@@ -7,7 +7,7 @@ import { transformInteraction } from './commandParsing/transformInteraction';
 export function handleCommands(interaction: Interaction) {
 	if (!interaction.isCommand()) return;
 	const { commandName, options } = interaction;
-	const args = [...options.values()];
+	const args = [...options.data];
 
 	switch (commandName) {
 		case CreateCommand.name:
