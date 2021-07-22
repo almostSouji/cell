@@ -130,7 +130,7 @@ export async function handleCreateCommand(interaction: CommandInteraction, args:
 	if (args.bot) {
 		const { bot: targetIsBot, tag: targetTag, id: targetId } = args.bot.user;
 		if (targetIsBot) {
-			const invite = `https://discordapp.com/oauth2/authorize?client_id=${client.user!.id}&permissions=0&scope=${
+			const invite = `https://discordapp.com/oauth2/authorize?client_id=${targetId}&permissions=0&scope=${
 				args.scopes ?? 'interactions.commands'
 			}`;
 			parts.push(JOIN_BEFORE_APP);
