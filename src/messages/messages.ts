@@ -8,7 +8,7 @@ export const CREATION_LOG = (tag: string, id: string) => `Creating sandbox for $
 export const NOT_APPLICATION = (tag: string, id: string) =>
 	`✘ Target \`${tag}\` (${id}) is not an application. Can not create invite.`;
 export const APPLICATION_INVITE = (tag: string, id: string, invite: string) =>
-	`✓ Invite ${tag} (${id}): [(invite application)](<${invite}>)`;
+	`✓ Invite \`${tag}\` (${id}): [(invite application)](<${invite}>)`;
 export const JOIN_BEFORE_APP = '**Please make sure to join the server first and give yourself permissions!**';
 export const CHANNELS_OF_TYPE_ADDED = (num: number, type: string) => `✓ Added \`${num}\` channels of type \`${type}\``;
 export const ENTER_GUILD = (invite: string) => `✓ Your invite was created: [(join server)](${invite})`;
