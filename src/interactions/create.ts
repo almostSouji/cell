@@ -35,7 +35,7 @@ export const CreateCommand = {
 			choices: [
 				{
 					name: 'interactions (default)',
-					value: 'interactions.commands',
+					value: 'applications.commands',
 				},
 				{
 					name: 'bot',
@@ -43,7 +43,7 @@ export const CreateCommand = {
 				},
 				{
 					name: 'bot & interactions',
-					value: 'bot%20interactions.commands',
+					value: 'bot%20applications.commands',
 				},
 			],
 		},
