@@ -1,5 +1,14 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
-import { Intents, Client, GuildMemberRoleManager, MessageActionRow, MessageButton } from 'discord.js';
+import {
+	Intents,
+	Client,
+	GuildMemberRoleManager,
+	MessageActionRow,
+	MessageButton,
+	Constants,
+	Permissions,
+	TextChannel,
+} from 'discord.js';
 
 import { handleCommands } from './functions/handleCommands';
 
@@ -9,6 +18,7 @@ import {
 	CANNOT_DELETE,
 	CANNOT_UPDATE_ROLES,
 	DELETE_SURE,
+	INVITE_CREATE,
 	READY,
 	ROLES_UPDATED,
 	TIME_OUT,
@@ -81,8 +91,14 @@ client.on('interaction', async (interaction) => {
 				ephemeral: true,
 				components: [
 					new MessageActionRow().addComponents(
-						new MessageButton().setCustomId('cancel').setLabel('No, stop!').setStyle('SECONDARY'),
-						new MessageButton().setCustomId('confirm').setLabel('Yes, delete the sandbox').setStyle('DANGER'),
+						new MessageButton()
+							.setCustomId('cancel')
+							.setLabel('No, stop!')
+							.setStyle(Constants.MessageButtonStyles.PRIMARY),
+						new MessageButton()
+							.setCustomId('confirm')
+							.setLabel('Yes, delete the sandbox')
+							.setStyle(Constants.MessageButtonStyles.DANGER),
 					),
 				],
 			});
@@ -110,6 +126,35 @@ client.on('interaction', async (interaction) => {
 				content: CANCEL_DELETE,
 				ephemeral: true,
 			});
+		case 'invite': {
+			const invites = await interaction.guild.invites.fetch();
+			const invite = invites.first();
+			if (invite) {
+				void interaction.reply({
+					content: INVITE_CREATE(invite.toString()),
+					ephemeral: true,
+				});
+			} else {
+				let channel = interaction.guild.channels.cache.find(
+					(c) =>
+						(c
+							.permissionsFor(client.user!)
+							?.has([Permissions.FLAGS.CREATE_INSTANT_INVITE, Permissions.FLAGS.VIEW_CHANNEL]) &&
+							c.type === 'GUILD_TEXT') ??
+						false,
+				);
+
+				if (!channel) {
+					channel = await interaction.guild.channels.create('welcome', { type: Constants.ChannelTypes.GUILD_TEXT });
+				}
+				const c = channel as TextChannel;
+				const invite = await c.createInvite({ maxAge: 0, reason: 'invite request' });
+				void interaction.reply({
+					content: INVITE_CREATE(invite.toString()),
+					ephemeral: true,
+				});
+			}
+		}
 	}
 });
 

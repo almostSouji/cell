@@ -1,4 +1,4 @@
-import { CommandInteraction, Constants, MessageActionRow, MessageButton, Permissions } from 'discord.js';
+import { CommandInteraction, Constants, MessageActionRow, MessageButton, MessageEmbed, Permissions } from 'discord.js';
 import { logger } from '../functions/logger';
 import { createSandboxId } from '../functions/util';
 import { CreateCommand } from '../interactions/create';
@@ -64,16 +64,27 @@ export async function handleCreateCommand(interaction: CommandInteraction, args:
 	});
 
 	const message = await welcome.send({
-		content: WELCOME_MESSAGE(user.tag, `<t:${Math.floor(Date.now() / 1000)}:R>`),
+		embeds: [
+			new MessageEmbed()
+				.setDescription(WELCOME_MESSAGE(user.tag, `<t:${Math.floor(Date.now() / 1000)}:R>`))
+				.setColor('#2F3136'),
+		],
 		components: [
 			new MessageActionRow().addComponents([
-				new MessageButton().setCustomId('admin').setLabel('Toggle Admin role').setStyle('PRIMARY'),
-				new MessageButton().setCustomId('delete').setLabel('Delete sandbox').setStyle('DANGER'),
+				new MessageButton()
+					.setCustomId('admin')
+					.setLabel('Toggle Admin role')
+					.setStyle(Constants.MessageButtonStyles.PRIMARY),
+				new MessageButton()
+					.setCustomId('delete')
+					.setLabel('Delete sandbox')
+					.setStyle(Constants.MessageButtonStyles.DANGER),
+				new MessageButton().setCustomId('invite').setLabel('Invite').setStyle(Constants.MessageButtonStyles.SECONDARY),
 			]),
 		],
 	});
-	void message.pin();
-	void guild.setSystemChannel(welcome);
+	await message.pin();
+	await guild.setSystemChannel(welcome);
 	await guild.roles.everyone.setPermissions([
 		'VIEW_CHANNEL',
 		'SEND_MESSAGES',
