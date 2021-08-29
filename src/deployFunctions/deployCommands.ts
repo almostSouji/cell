@@ -7,10 +7,11 @@ config({ path: resolve(__dirname, '../../.env') });
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { CreateCommand } from '../interactions/create';
+import { InviteBotCommand } from '../interactions/inviteBot';
 /* eslint-enable @typescript-eslint/no-unused-vars */
 import { logger } from '../functions/logger';
 
-const commands = [CreateCommand];
+const commands = [CreateCommand, InviteBotCommand];
 
 async function main() {
 	const rest = new REST({ version: '9' }).setToken(process.env.DISCORD_TOKEN!);

@@ -6,22 +6,22 @@ export const CreateCommand = {
 		{
 			type: 4,
 			name: 'textchannels',
-			description: 'Amount of text channels to create (default 1)',
+			description: 'Amount of text channels to create (default 0)',
 		},
 		{
 			type: 4,
 			name: 'voicechannels',
-			description: 'Amount of voice channels to create (default 1)',
+			description: 'Amount of voice channels to create (default 0)',
 		},
 		{
 			type: 4,
 			name: 'categorychannels',
-			description: 'Amount of category channels to create (default 1)',
+			description: 'Amount of category channels to create (default 0)',
 		},
 		{
 			type: 4,
 			name: 'nsfwtextchannels',
-			description: 'Amount of nsfw text channels to create (default 1)',
+			description: 'Amount of nsfw text channels to create (default 0)',
 		},
 		{
 			type: 6,

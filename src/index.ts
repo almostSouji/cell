@@ -56,7 +56,7 @@ client.on('ready', () => {
 	logger.info(READY(client.user!.tag, client.user!.id));
 });
 
-client.on('interaction', async (interaction) => {
+client.on('interactionCreate', async (interaction) => {
 	void handleCommands(interaction);
 
 	if (!interaction.guild || !interaction.isButton()) return;
