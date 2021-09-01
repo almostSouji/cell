@@ -8,6 +8,8 @@ import {
 	Constants,
 	Permissions,
 	TextChannel,
+	GuildChannel,
+	CategoryChannel,
 } from 'discord.js';
 
 import { handleCommands } from './functions/handleCommands';
@@ -153,6 +155,70 @@ client.on('interactionCreate', async (interaction) => {
 					content: INVITE_CREATE(invite.toString()),
 					ephemeral: true,
 				});
+			}
+		}
+		case 'deletechannel':
+			await interaction.update({ content: '✓ Channel deletion in progress...', components: [] });
+			await interaction.channel?.delete();
+			break;
+		default: {
+			const rest = interaction.customId.split('add')[1];
+			let channel: GuildChannel;
+			try {
+				const extra = (interaction.guild.channels.cache.find(
+					(c) => c.name === 'extra' && c.type === 'GUILD_CATEGORY',
+				) ??
+					(await await interaction.guild.channels.create('extra', {
+						type: 'GUILD_CATEGORY',
+					}))) as CategoryChannel;
+
+				const deleteChannelRow = new MessageActionRow().addComponents([
+					new MessageButton()
+						.setCustomId('deletechannel')
+						.setLabel('Delete Channel')
+						.setStyle(Constants.MessageButtonStyles.DANGER),
+				]);
+
+				switch (rest) {
+					case 'text': {
+						const txtChannel = await interaction.guild.channels.create('text', {
+							type: 'GUILD_TEXT',
+							parent: extra,
+						});
+						channel = txtChannel;
+						void txtChannel.send({
+							content: '\u200B',
+							components: [deleteChannelRow],
+						});
+						break;
+					}
+					case 'nsfw': {
+						const txtChannel = await interaction.guild.channels.create('nsfw', {
+							type: 'GUILD_TEXT',
+							nsfw: true,
+							parent: extra,
+						});
+						channel = txtChannel;
+						void txtChannel.send({
+							content: '\u200B',
+							components: [deleteChannelRow],
+						});
+						break;
+					}
+					case 'voice':
+						channel = await interaction.guild.channels.create('voice', { type: 'GUILD_VOICE', parent: extra });
+						break;
+					case 'category':
+						channel = await interaction.guild.channels.create('category', { type: 'GUILD_CATEGORY' });
+						break;
+				}
+
+				void interaction.reply({
+					content: `✓ Created ${rest} channel <#${channel!.id}>.`,
+					ephemeral: true,
+				});
+			} catch (e) {
+				logger.error(e, e.message);
 			}
 		}
 	}
