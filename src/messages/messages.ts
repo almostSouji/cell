@@ -17,5 +17,4 @@ export const CANNOT_UPDATE_ROLES = '✘ Cannot update roles.';
 export const ROLES_UPDATED = '✓ Roles updated.';
 export const CANCEL_DELETE = '✓ Cancelled sandbox deletion.';
 export const DELETE_SURE = 'Do you really want to delete this sandbox? This action is irreversible!';
-export const TIME_OUT = '✘ This action timed out.';
 export const INVITE_CREATE = (code: string) => `✓ Here is the requested invite: ${code}`;

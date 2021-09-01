@@ -23,7 +23,6 @@ import {
 	INVITE_CREATE,
 	READY,
 	ROLES_UPDATED,
-	TIME_OUT,
 } from './messages/messages';
 
 export interface ProcessEnv {
@@ -104,14 +103,6 @@ client.on('interactionCreate', async (interaction) => {
 					),
 				],
 			});
-			setTimeout(
-				() =>
-					interaction.editReply({
-						content: TIME_OUT,
-						components: [],
-					}),
-				10_000,
-			);
 			break;
 		case 'confirm':
 			try {
