@@ -115,12 +115,21 @@ client.on('interactionCreate', async (interaction) => {
 			break;
 		case 'confirm':
 			try {
-				await interaction.guild.delete();
-			} catch {
-				void interaction.reply({
-					content: CANNOT_DELETE,
+				await interaction.reply({
+					content: 'Deletion in progress...',
 					ephemeral: true,
 				});
+				await interaction.guild.delete();
+			} catch {
+				if (interaction.replied) {
+					void interaction.editReply({
+						content: CANNOT_DELETE,
+					});
+				} else {
+					void interaction.reply({
+						content: CANNOT_DELETE,
+					});
+				}
 			}
 			break;
 		case 'cancel':
