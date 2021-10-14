@@ -13,11 +13,17 @@ export async function handleListCommand(interaction: CommandInteraction) {
 		let welcome = guild.channels.cache.find((c) => c.name === 'welcome' && c.type === 'GUILD_TEXT') as
 			| TextChannel
 			| undefined;
+
 		if (!welcome) {
 			welcome = await guild.channels.create('welcome', {
 				type: 'GUILD_TEXT',
 			});
+		}
 
+		const welcomeMessage = await welcome.messages
+			.fetch({ limit: 100 })
+			.then((mm) => mm.find((m) => m.components.length > 0));
+		if (!welcomeMessage) {
 			await welcome.send({
 				embeds: [
 					new MessageEmbed()
