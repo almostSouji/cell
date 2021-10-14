@@ -18,3 +18,8 @@ export const ROLES_UPDATED = '✓ Roles updated.';
 export const CANCEL_DELETE = '✓ Cancelled sandbox deletion.';
 export const DELETE_SURE = 'Do you really want to delete this sandbox? This action is irreversible!';
 export const INVITE_CREATE = (code: string) => `✓ Here is the requested invite: ${code}`;
+export const DELETE_NOT_GUILD = (id: string) => `✘ Target \`${id}\` cannot be resolved to a guild.`;
+export const DELETE_NOT_SANDBOX = (name: string, id: string) => `✘ Target \`${name}\` (\`${id}\`) is not a sandbox.`;
+export const DELETE_ERROR = (err: string, name: string, id: string) =>
+	`✘ Could not delete \`${name}\` (\`${id}\`). \`${err}\``;
+export const DELETE_SUCCESS = (name: string, id: string) => `✓ Target sandbox \`${name}\` (\`${id}\`) is deleted.`;
