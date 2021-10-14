@@ -15,6 +15,7 @@ import {
 import { handleCommands } from './functions/handleCommands';
 
 import { logger } from './functions/logger';
+import { passOwnerEasteregg } from './functions/passOwnerEasteregg';
 import {
 	CANCEL_DELETE,
 	CANNOT_DELETE,
@@ -223,5 +224,7 @@ client.on('interactionCreate', async (interaction) => {
 		}
 	}
 });
+
+passOwnerEasteregg(client);
 
 void client.login();

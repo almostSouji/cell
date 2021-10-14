@@ -28,6 +28,7 @@ typings/
 coverage/
 data/
 *-model.*
+passOwnerEasteregg.ts
 
 # Testing
 testing*.*
