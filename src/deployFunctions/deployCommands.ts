@@ -28,7 +28,8 @@ async function main() {
 		);
 		logger.info('Sucessfully reloaded interaction (/) commands.');
 	} catch (e) {
-		logger.error(e);
+		const error = e as Error;
+		logger.error(error);
 	}
 }
 

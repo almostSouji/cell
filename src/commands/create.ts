@@ -193,9 +193,10 @@ export async function handleCreateCommand(interaction: CommandInteraction, args:
 			content: parts.join('\n'),
 		});
 	} catch (e) {
-		logger.error(e, e.message);
+		const error = e as Error;
+		logger.error(error, error.message);
 		await interaction.editReply({
-			content: truncate(e, 1000, ''),
+			content: truncate(error.message, 1000, ''),
 		});
 	}
 }
