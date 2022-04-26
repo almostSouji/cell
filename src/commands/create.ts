@@ -26,7 +26,7 @@ export async function handleCreateCommand(interaction: CommandInteraction, args:
 	}
 	const parts = [];
 	try {
-		await interaction.defer({
+		await interaction.deferReply({
 			ephemeral: true,
 		});
 

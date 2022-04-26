@@ -2,7 +2,7 @@ import { CommandInteraction, Constants, MessageActionRow, MessageButton, Message
 import { WELCOME_MESSAGE } from '../messages/messages';
 
 export async function handleListCommand(interaction: CommandInteraction) {
-	await interaction.defer({
+	await interaction.deferReply({
 		ephemeral: true,
 	});
 	const parts = [];

@@ -7,7 +7,7 @@ export async function handleInviteBotCommand(
 	interaction: CommandInteraction,
 	args: ArgumentsOf<typeof InviteBotCommand>,
 ) {
-	await interaction.defer({
+	await interaction.deferReply({
 		ephemeral: true,
 	});
 	const parts = [];

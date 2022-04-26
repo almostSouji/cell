@@ -5,7 +5,7 @@ import { DELETE_ERROR, DELETE_NOT_GUILD, DELETE_NOT_SANDBOX, DELETE_SUCCESS } fr
 import { ArgumentsOf } from '../types/ArgumentsOf';
 
 export async function handleListCommand(interaction: CommandInteraction, args: ArgumentsOf<typeof DeleteCommand>) {
-	await interaction.defer({
+	await interaction.deferReply({
 		ephemeral: true,
 	});
 
