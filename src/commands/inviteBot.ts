@@ -13,9 +13,7 @@ export async function handleInviteBotCommand(
 	const parts = [];
 	const { bot: targetIsBot, tag: targetTag, id: targetId } = args.bot.user;
 	if (targetIsBot) {
-		const invite = `https://discordapp.com/oauth2/authorize?client_id=${targetId}&permissions=0&scope=${
-			args.scopes ?? 'interactions.commands'
-		}`;
+		const invite = `https://discordapp.com/oauth2/authorize?client_id=${targetId}&permissions=0&scope=bot`;
 		parts.push(APPLICATION_INVITE(targetTag, targetId, invite));
 	} else {
 		parts.push(NOT_APPLICATION(targetTag, targetId));

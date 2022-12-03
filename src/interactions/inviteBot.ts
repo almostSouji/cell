@@ -9,24 +9,5 @@ export const InviteBotCommand = {
 			description: 'Application to invite',
 			required: true,
 		},
-		{
-			type: 3,
-			name: 'scopes',
-			description: 'Scopes to invite the application with',
-			choices: [
-				{
-					name: 'interactions (default)',
-					value: 'applications.commands',
-				},
-				{
-					name: 'bot',
-					value: 'bot',
-				},
-				{
-					name: 'bot & interactions',
-					value: 'bot%20applications.commands',
-				},
-			],
-		},
 	],
 } as const;
