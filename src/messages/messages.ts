@@ -4,6 +4,8 @@ export const GUILD_LIMIT_REACHED = (amount: number) =>
 	`Bots can only create guilds if they are on 9 or less guilds themselves. Current amount of servers: \`${amount}\``;
 export const WELCOME_MESSAGE = (tag: string, now: string) =>
 	`**Welcome! This server is an application managed sandbox**\n• You can use the left button to grant yourself administrator privileges.\n• There is an additional administrator role to grant alts and bots.\n• This sandbox has been created by \`${tag}\` ${now}.`;
+export const WELCOME_MESSAGE_FORCE = (now: string) =>
+	`**Welcome! This server is an application managed sandbox**\n• You can use the left button to grant yourself administrator privileges.\n• There is an additional administrator role to grant alts and bots.\n• Someone tried to delete the welcome channel, so it was restored ${now}.`;
 export const CREATION_LOG = (tag: string, id: string) => `Creating sandbox for ${tag} (${id})`;
 export const NOT_APPLICATION = (tag: string, id: string) =>
 	`✘ Target \`${tag}\` (${id}) is not an application. Can not create invite.`;

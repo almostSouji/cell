@@ -1,14 +1,14 @@
-import { Interaction } from 'discord.js';
-import { handleCreateCommand } from '../commands/create';
-import { handleDeleteCommand } from '../commands/delete';
-import { handleInviteBotCommand } from '../commands/inviteBot';
-import { handleListCommand } from '../commands/list';
-import { CreateCommand } from '../interactions/create';
-import { DeleteCommand } from '../interactions/delete';
-import { InviteBotCommand } from '../interactions/inviteBot';
-import { ListCommand } from '../interactions/list';
-import { INTERACTION_NO_HANDLER } from '../messages/messages';
-import { transformInteraction } from './commandParsing/transformInteraction';
+import type { Interaction } from 'discord.js';
+import { transformInteraction } from './commandParsing/transformInteraction.js';
+import { handleCreateCommand } from '../commands/create.js';
+import { handleDeleteCommand } from '../commands/delete.js';
+import { handleInviteBotCommand } from '../commands/inviteBot.js';
+import { handleListCommand } from '../commands/list.js';
+import { CreateCommand } from '../interactions/create.js';
+import { DeleteCommand } from '../interactions/delete.js';
+import { InviteBotCommand } from '../interactions/inviteBot.js';
+import { ListCommand } from '../interactions/list.js';
+import { INTERACTION_NO_HANDLER } from '../messages/messages.js';
 
 export function handleCommands(interaction: Interaction) {
 	if (!interaction.isCommand()) return;
@@ -28,7 +28,7 @@ export function handleCommands(interaction: Interaction) {
 
 		default:
 			return interaction.reply({
-				content: INTERACTION_NO_HANDLER(interaction.commandName, interaction.id),
+				content: INTERACTION_NO_HANDLER(commandName, interaction.id),
 				ephemeral: true,
 			});
 	}

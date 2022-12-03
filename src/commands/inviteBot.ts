@@ -1,7 +1,7 @@
-import { CommandInteraction } from 'discord.js';
-import { InviteBotCommand } from '../interactions/inviteBot';
-import { APPLICATION_INVITE, NOT_APPLICATION } from '../messages/messages';
-import { ArgumentsOf } from '../types/ArgumentsOf';
+import type { CommandInteraction } from 'discord.js';
+import type { InviteBotCommand } from '../interactions/inviteBot.js';
+import { APPLICATION_INVITE, NOT_APPLICATION } from '../messages/messages.js';
+import type { ArgumentsOf } from '../types/ArgumentsOf.js';
 
 export async function handleInviteBotCommand(
 	interaction: CommandInteraction,

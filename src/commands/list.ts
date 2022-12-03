@@ -1,5 +1,6 @@
-import { CommandInteraction, Constants, MessageActionRow, MessageButton, MessageEmbed, TextChannel } from 'discord.js';
-import { WELCOME_MESSAGE } from '../messages/messages';
+import { ChannelType, CommandInteraction, TextChannel } from 'discord.js';
+import { WELCOME_CHANNEL_ACTIONROWS } from './create.js';
+import { WELCOME_MESSAGE_FORCE } from '../messages/messages.js';
 
 export async function handleListCommand(interaction: CommandInteraction) {
 	await interaction.deferReply({
@@ -8,15 +9,16 @@ export async function handleListCommand(interaction: CommandInteraction) {
 	const parts = [];
 
 	for (const guild of interaction.client.guilds.cache
-		.filter((g) => g.ownerId === interaction.client.user!.id)
+		.filter((g) => g.ownerId === interaction.client.user.id)
 		.values()) {
-		let welcome = guild.channels.cache.find((c) => c.name === 'welcome' && c.type === 'GUILD_TEXT') as
+		let welcome = guild.channels.cache.find((c) => c.name === 'welcome' && c.isTextBased() && !c.isThread()) as
 			| TextChannel
 			| undefined;
 
 		if (!welcome) {
-			welcome = await guild.channels.create('welcome', {
-				type: 'GUILD_TEXT',
+			welcome = await guild.channels.create({
+				name: 'welcome',
+				type: ChannelType.GuildText,
 			});
 		}
 
@@ -26,44 +28,12 @@ export async function handleListCommand(interaction: CommandInteraction) {
 		if (!welcomeMessage) {
 			await welcome.send({
 				embeds: [
-					new MessageEmbed()
-						.setDescription(WELCOME_MESSAGE(interaction.client.user!.tag, `<t:${Math.floor(Date.now() / 1000)}:R>`))
-						.setColor('#2F3136'),
+					{
+						description: WELCOME_MESSAGE_FORCE(`<t:${Math.floor(Date.now() / 1000)}:R>`),
+						color: 0x2f3136,
+					},
 				],
-				components: [
-					new MessageActionRow().addComponents([
-						new MessageButton()
-							.setCustomId('admin')
-							.setLabel('Toggle Admin role')
-							.setStyle(Constants.MessageButtonStyles.PRIMARY),
-						new MessageButton()
-							.setCustomId('delete')
-							.setLabel('Delete sandbox')
-							.setStyle(Constants.MessageButtonStyles.DANGER),
-						new MessageButton()
-							.setCustomId('invite')
-							.setLabel('Invite')
-							.setStyle(Constants.MessageButtonStyles.SECONDARY),
-					]),
-					new MessageActionRow().addComponents([
-						new MessageButton()
-							.setCustomId('addtext')
-							.setLabel('+text')
-							.setStyle(Constants.MessageButtonStyles.SECONDARY),
-						new MessageButton()
-							.setCustomId('addnsfw')
-							.setLabel('+nsfw')
-							.setStyle(Constants.MessageButtonStyles.SECONDARY),
-						new MessageButton()
-							.setCustomId('addvoice')
-							.setLabel('+voice')
-							.setStyle(Constants.MessageButtonStyles.SECONDARY),
-						new MessageButton()
-							.setCustomId('addcategory')
-							.setLabel('+category')
-							.setStyle(Constants.MessageButtonStyles.SECONDARY),
-					]),
-				],
+				components: WELCOME_CHANNEL_ACTIONROWS,
 			});
 		}
 

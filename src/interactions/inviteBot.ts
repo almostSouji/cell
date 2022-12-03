@@ -1,10 +1,12 @@
+import { ApplicationCommandOptionType } from 'discord.js';
+
 export const InviteBotCommand = {
 	name: 'invite-bot',
 	description: 'Create an invite link for provided Discord application',
 	default_permission: true,
 	options: [
 		{
-			type: 6,
+			type: ApplicationCommandOptionType.User,
 			name: 'bot',
 			description: 'Application to invite',
 			required: true,

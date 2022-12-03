@@ -1,4 +1,4 @@
-FROM node:16-alpine
+FROM node:18-alpine
 LABEL name "cell"
 LABEL version "0.0.0"
 LABEL maintainer "almostSouji <https://github.com/almostSouji>"

@@ -1,51 +1,34 @@
+import { ApplicationCommandOptionType } from 'discord.js';
+
 export const CreateCommand = {
 	name: 'create',
-	description: 'Create a new sandbox with provided parameters',
+	description: '🔧 Create a new sandbox with provided parameters',
 	default_permission: true,
 	options: [
 		{
-			type: 4,
+			type: ApplicationCommandOptionType.Integer,
 			name: 'textchannels',
 			description: 'Amount of text channels to create (default 0)',
 		},
 		{
-			type: 4,
+			type: ApplicationCommandOptionType.Integer,
 			name: 'voicechannels',
 			description: 'Amount of voice channels to create (default 0)',
 		},
 		{
-			type: 4,
+			type: ApplicationCommandOptionType.Integer,
 			name: 'categorychannels',
 			description: 'Amount of category channels to create (default 0)',
 		},
 		{
-			type: 4,
+			type: ApplicationCommandOptionType.Integer,
 			name: 'nsfwtextchannels',
 			description: 'Amount of nsfw text channels to create (default 0)',
 		},
 		{
-			type: 6,
+			type: ApplicationCommandOptionType.User,
 			name: 'bot',
 			description: 'Application to invite',
-		},
-		{
-			type: 3,
-			name: 'scopes',
-			description: 'Scopes to invite the application with',
-			choices: [
-				{
-					name: 'interactions (default)',
-					value: 'applications.commands',
-				},
-				{
-					name: 'bot',
-					value: 'bot',
-				},
-				{
-					name: 'bot & interactions',
-					value: 'bot%20applications.commands',
-				},
-			],
 		},
 	],
 } as const;

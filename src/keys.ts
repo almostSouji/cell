@@ -1,0 +1,15 @@
+export const KEY_ADMIN = 'ADMIN';
+export const KEY_DELETE = 'DELETE';
+export const KEY_CONFIRM = 'CONFIRM';
+export const KEY_CANCEL = 'CANCEL';
+export const KEY_INVITE = 'INVITE';
+export const KEY_DELETE_CHANNEL = 'DELETE_CHANNEL';
+export const CREATE_PREFIX = 'ADD';
+export const SUFFIX_TEXT = 'TEXT';
+export const SUFFIX_NSFW = 'NSFW';
+export const SUFFIX_VOICE = 'VOICE';
+export const SUFFIX_CATEGORY = 'CATEGORY';
+export const KEY_ADD_TEXT = `${CREATE_PREFIX}_${SUFFIX_TEXT}`;
+export const KEY_ADD_NSFW = `${CREATE_PREFIX}_${SUFFIX_NSFW}`;
+export const KEY_ADD_VOICE = `${CREATE_PREFIX}_${SUFFIX_VOICE}`;
+export const KEY_ADD_CATEGORY = `${CREATE_PREFIX}_${SUFFIX_CATEGORY}`;

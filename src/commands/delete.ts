@@ -1,8 +1,9 @@
-import { CommandInteraction } from 'discord.js';
-import { DeleteCommand } from '../interactions/delete';
-import { DELETE_ERROR, DELETE_NOT_GUILD, DELETE_NOT_SANDBOX, DELETE_SUCCESS } from '../messages/messages';
+import { logger } from '@yuudachi/framework';
+import type { CommandInteraction } from 'discord.js';
+import type { DeleteCommand } from '../interactions/delete.js';
+import { DELETE_ERROR, DELETE_NOT_GUILD, DELETE_NOT_SANDBOX, DELETE_SUCCESS } from '../messages/messages.js';
 
-import { ArgumentsOf } from '../types/ArgumentsOf';
+import type { ArgumentsOf } from '../types/ArgumentsOf.js';
 
 export async function handleDeleteCommand(interaction: CommandInteraction, args: ArgumentsOf<typeof DeleteCommand>) {
 	await interaction.deferReply({
@@ -14,12 +15,14 @@ export async function handleDeleteCommand(interaction: CommandInteraction, args:
 	const guild = interaction.client.guilds.resolve(args.guild);
 	if (!guild) {
 		parts.push(DELETE_NOT_GUILD(args.guild));
-	} else if (guild.ownerId === interaction.client.user!.id) {
+	} else if (guild.ownerId === interaction.client.user.id) {
 		try {
+			logger.info(`${interaction.user.tag} (${interaction.user.id}) is deleting sandbox ${guild.name} (${guild.id})`);
 			await guild.delete();
 			parts.push(DELETE_SUCCESS(guild.name, guild.id));
-		} catch (e: any) {
-			parts.push(DELETE_ERROR(e.message, guild.name, guild.id));
+		} catch (e) {
+			const error = e as Error;
+			parts.push(DELETE_ERROR(error.message, guild.name, guild.id));
 		}
 	} else {
 		parts.push(DELETE_NOT_SANDBOX(guild.name, guild.id));

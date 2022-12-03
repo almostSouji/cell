@@ -1,21 +1,34 @@
-/* eslint-disable @typescript-eslint/no-misused-promises */
+import 'reflect-metadata';
+import { logger, createMessageActionRow, createButton } from '@yuudachi/framework';
 import {
-	Intents,
 	Client,
 	GuildMemberRoleManager,
-	MessageActionRow,
-	MessageButton,
-	Constants,
-	Permissions,
 	TextChannel,
 	GuildChannel,
 	CategoryChannel,
+	GatewayIntentBits,
+	ActivityType,
+	ButtonStyle,
+	PermissionFlagsBits,
+	ChannelType,
 } from 'discord.js';
+import { DELETE_CHANNEL_ACTIONROW } from './commands/create.js';
+import { handleCommands } from './functions/handleCommands.js';
 
-import { handleCommands } from './functions/handleCommands';
-
-import { logger } from './functions/logger';
-import { passOwnerEasteregg } from './functions/passOwnerEasteregg';
+import { passOwnerEasteregg } from './functions/passOwnerEasteregg.js';
+import {
+	CREATE_PREFIX,
+	KEY_ADMIN,
+	KEY_CANCEL,
+	KEY_CONFIRM,
+	KEY_DELETE,
+	KEY_DELETE_CHANNEL,
+	KEY_INVITE,
+	SUFFIX_CATEGORY,
+	SUFFIX_NSFW,
+	SUFFIX_TEXT,
+	SUFFIX_VOICE,
+} from './keys.js';
 import {
 	CANCEL_DELETE,
 	CANNOT_DELETE,
@@ -24,7 +37,7 @@ import {
 	INVITE_CREATE,
 	READY,
 	ROLES_UPDATED,
-} from './messages/messages';
+} from './messages/messages.js';
 
 export interface ProcessEnv {
 	DISCORD_TOKEN: string;
@@ -42,11 +55,11 @@ export enum OpCodes {
 }
 
 const client = new Client({
-	intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MEMBERS],
+	intents: [GatewayIntentBits.Guilds],
 	presence: {
 		activities: [
 			{
-				type: 'WATCHING',
+				type: ActivityType.Watching,
 				name: 'over sandboxes',
 			},
 		],
@@ -63,7 +76,7 @@ client.on('interactionCreate', async (interaction) => {
 
 	if (!interaction.guild || !interaction.isButton()) return;
 	switch (interaction.customId) {
-		case 'admin':
+		case KEY_ADMIN:
 			{
 				const adminRole = interaction.guild.roles.cache.find((r) => r.name === 'Admin');
 				const manager = interaction.member?.roles;
@@ -87,49 +100,62 @@ client.on('interactionCreate', async (interaction) => {
 				}
 			}
 			break;
-		case 'delete':
+		case KEY_DELETE: {
+			if (interaction.guildId === '1045039086840324136') {
+				await interaction.reply({
+					content: 'No, I still need this!',
+					ephemeral: true,
+				});
+				return;
+			}
 			void interaction.reply({
 				content: DELETE_SURE,
 				ephemeral: true,
 				components: [
-					new MessageActionRow().addComponents(
-						new MessageButton()
-							.setCustomId('cancel')
-							.setLabel('No, stop!')
-							.setStyle(Constants.MessageButtonStyles.PRIMARY),
-						new MessageButton()
-							.setCustomId('confirm')
-							.setLabel('Yes, delete the sandbox')
-							.setStyle(Constants.MessageButtonStyles.DANGER),
-					),
+					createMessageActionRow([
+						createButton({
+							customId: KEY_CANCEL,
+							label: 'No, stop!',
+							style: ButtonStyle.Primary,
+						}),
+						createButton({
+							customId: KEY_CONFIRM,
+							label: 'Yes, delete the sandbox (irreversible)!',
+							style: ButtonStyle.Danger,
+						}),
+					]),
 				],
 			});
 			break;
-		case 'confirm':
+		}
+		case KEY_CONFIRM:
 			try {
-				await interaction.reply({
+				await interaction.update({
 					content: 'Deletion in progress...',
-					ephemeral: true,
+					components: [],
 				});
 				await interaction.guild.delete();
 			} catch {
 				if (interaction.replied) {
-					void interaction.editReply({
+					void interaction.update({
 						content: CANNOT_DELETE,
+						components: [],
 					});
 				} else {
 					void interaction.reply({
 						content: CANNOT_DELETE,
+						components: [],
 					});
 				}
 			}
 			break;
-		case 'cancel':
-			void interaction.reply({
+		case KEY_CANCEL:
+			void interaction.update({
 				content: CANCEL_DELETE,
-				ephemeral: true,
+				components: [],
 			});
-		case 'invite': {
+			break;
+		case KEY_INVITE: {
 			const invites = await interaction.guild.invites.fetch();
 			const invite = invites.first();
 			if (invite) {
@@ -142,13 +168,14 @@ client.on('interactionCreate', async (interaction) => {
 					(c) =>
 						(c
 							.permissionsFor(client.user!)
-							?.has([Permissions.FLAGS.CREATE_INSTANT_INVITE, Permissions.FLAGS.VIEW_CHANNEL]) &&
-							c.type === 'GUILD_TEXT') ??
+							?.has([PermissionFlagsBits.CreateInstantInvite, PermissionFlagsBits.ViewChannel]) &&
+							c.isTextBased() &&
+							!c.isThread()) ??
 						false,
 				);
 
 				if (!channel) {
-					channel = await interaction.guild.channels.create('welcome', { type: Constants.ChannelTypes.GUILD_TEXT });
+					channel = await interaction.guild.channels.create({ name: 'welcome', type: ChannelType.GuildText });
 				}
 				const c = channel as TextChannel;
 				const invite = await c.createInvite({ maxAge: 0, reason: 'invite request' });
@@ -157,69 +184,76 @@ client.on('interactionCreate', async (interaction) => {
 					ephemeral: true,
 				});
 			}
+			break;
 		}
-		case 'deletechannel':
+		case KEY_DELETE_CHANNEL:
 			await interaction.update({ content: '✓ Channel deletion in progress...', components: [] });
 			await interaction.channel?.delete();
 			break;
 		default: {
-			const rest = interaction.customId.split('add')[1];
+			const rest = interaction.customId.split(`${CREATE_PREFIX}_`)[1];
 			let channel: GuildChannel;
 			try {
 				const extra = (interaction.guild.channels.cache.find(
-					(c) => c.name === 'extra' && c.type === 'GUILD_CATEGORY',
+					(c) => c.name === 'extra' && c.type === ChannelType.GuildCategory,
 				) ??
-					(await await interaction.guild.channels.create('extra', {
-						type: 'GUILD_CATEGORY',
+					(await await interaction.guild.channels.create({
+						name: 'extra',
+						type: ChannelType.GuildText,
 					}))) as CategoryChannel;
 
-				const deleteChannelRow = new MessageActionRow().addComponents([
-					new MessageButton()
-						.setCustomId('deletechannel')
-						.setLabel('Delete Channel')
-						.setStyle(Constants.MessageButtonStyles.DANGER),
-				]);
-
 				switch (rest) {
-					case 'text': {
-						const txtChannel = await interaction.guild.channels.create('text', {
-							type: 'GUILD_TEXT',
+					case SUFFIX_TEXT: {
+						const txtChannel = await interaction.guild.channels.create({
+							name: SUFFIX_TEXT.toLowerCase(),
+							type: ChannelType.GuildText,
 							parent: extra,
 						});
 						channel = txtChannel;
 						void txtChannel.send({
 							content: '\u200B',
-							components: [deleteChannelRow],
+							components: [DELETE_CHANNEL_ACTIONROW],
 						});
 						break;
 					}
-					case 'nsfw': {
-						const txtChannel = await interaction.guild.channels.create('nsfw', {
-							type: 'GUILD_TEXT',
+					case SUFFIX_NSFW: {
+						const txtChannel = await interaction.guild.channels.create({
+							name: SUFFIX_NSFW.toLowerCase(),
+							type: ChannelType.GuildText,
+							parent: extra,
 							nsfw: true,
-							parent: extra,
 						});
 						channel = txtChannel;
 						void txtChannel.send({
 							content: '\u200B',
-							components: [deleteChannelRow],
+							components: [DELETE_CHANNEL_ACTIONROW],
 						});
 						break;
 					}
-					case 'voice':
-						channel = await interaction.guild.channels.create('voice', { type: 'GUILD_VOICE', parent: extra });
+					case SUFFIX_VOICE:
+						channel = await interaction.guild.channels.create({
+							name: SUFFIX_VOICE.toLowerCase(),
+							type: ChannelType.GuildVoice,
+							parent: extra,
+						});
 						break;
-					case 'category':
-						channel = await interaction.guild.channels.create('category', { type: 'GUILD_CATEGORY' });
+					case SUFFIX_CATEGORY:
+						channel = await interaction.guild.channels.create({
+							name: SUFFIX_CATEGORY.toLowerCase(),
+							type: ChannelType.GuildCategory,
+						});
 						break;
+					default:
+						logger.info(`Unknown switch option ${rest ?? 'undefined'}.`);
 				}
 
 				void interaction.reply({
-					content: `✓ Created ${rest} channel <#${channel!.id}>.`,
+					content: `✓ Created ${rest ?? 'undefined'} channel <#${channel!.id}>.`,
 					ephemeral: true,
 				});
 			} catch (e) {
-				logger.error(e, e.message);
+				const error = e as Error;
+				logger.error(error, error.message);
 			}
 		}
 	}

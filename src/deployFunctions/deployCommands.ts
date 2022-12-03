@@ -1,17 +1,13 @@
-import { config } from 'dotenv';
-import { resolve } from 'path';
-import { REST } from '@discordjs/rest';
-import { Routes, Snowflake } from 'discord-api-types/v8';
-
-config({ path: resolve(__dirname, '../../.env') });
+import 'reflect-metadata';
+import { logger } from '@yuudachi/framework';
+import { REST, Routes } from 'discord.js';
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { CreateCommand } from '../interactions/create';
-import { InviteBotCommand } from '../interactions/inviteBot';
-import { ListCommand } from '../interactions/list';
-import { DeleteCommand } from '../interactions/delete';
+import { CreateCommand } from '../interactions/create.js';
+import { DeleteCommand } from '../interactions/delete.js';
+import { InviteBotCommand } from '../interactions/inviteBot.js';
+import { ListCommand } from '../interactions/list.js';
 /* eslint-enable @typescript-eslint/no-unused-vars */
-import { logger } from '../functions/logger';
 
 async function main() {
 	const rest = new REST({ version: '9' }).setToken(process.env.DISCORD_TOKEN!);
@@ -19,18 +15,12 @@ async function main() {
 	try {
 		if ((process.env.DISCORD_GUILD?.length ?? 0) > 16) {
 			logger.info(`Start refreshing interaction (/) commands on guild ${process.env.DISCORD_GUILD!}`);
-			await rest.put(
-				Routes.applicationGuildCommands(
-					process.env.DISCORD_CLIENT_ID as Snowflake,
-					process.env.DISCORD_GUILD as Snowflake,
-				),
-				{
-					body: [CreateCommand, ListCommand, DeleteCommand],
-				},
-			);
+			await rest.put(Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID!, process.env.DISCORD_GUILD!), {
+				body: [CreateCommand, ListCommand, DeleteCommand],
+			});
 		} else {
 			logger.info('Start refreshing global interaction (/) commands');
-			await rest.put(Routes.applicationCommands(process.env.DISCORD_CLIENT_ID as Snowflake), {
+			await rest.put(Routes.applicationCommands(process.env.DISCORD_CLIENT_ID!), {
 				body: [InviteBotCommand],
 			});
 		}

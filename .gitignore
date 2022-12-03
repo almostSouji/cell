@@ -27,7 +27,6 @@ typings/
 .tmp/
 coverage/
 data/
-*-model.*
 passOwnerEasteregg.ts
 
 # Testing
