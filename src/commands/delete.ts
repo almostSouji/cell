@@ -1,20 +1,19 @@
-import { CommandInteraction, Snowflake } from 'discord.js';
+import { CommandInteraction } from 'discord.js';
 import { DeleteCommand } from '../interactions/delete';
 import { DELETE_ERROR, DELETE_NOT_GUILD, DELETE_NOT_SANDBOX, DELETE_SUCCESS } from '../messages/messages';
 
 import { ArgumentsOf } from '../types/ArgumentsOf';
 
-export async function handleListCommand(interaction: CommandInteraction, args: ArgumentsOf<typeof DeleteCommand>) {
+export async function handleDeleteCommand(interaction: CommandInteraction, args: ArgumentsOf<typeof DeleteCommand>) {
 	await interaction.deferReply({
 		ephemeral: true,
 	});
 
 	const parts = [];
 
-	const guildId = args.guild as Snowflake;
-	const guild = interaction.client.guilds.resolve(guildId);
+	const guild = interaction.client.guilds.resolve(args.guild);
 	if (!guild) {
-		parts.push(DELETE_NOT_GUILD(guildId));
+		parts.push(DELETE_NOT_GUILD(args.guild));
 	} else if (guild.ownerId === interaction.client.user!.id) {
 		try {
 			await guild.delete();

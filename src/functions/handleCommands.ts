@@ -1,8 +1,10 @@
 import { Interaction } from 'discord.js';
 import { handleCreateCommand } from '../commands/create';
+import { handleDeleteCommand } from '../commands/delete';
 import { handleInviteBotCommand } from '../commands/inviteBot';
 import { handleListCommand } from '../commands/list';
 import { CreateCommand } from '../interactions/create';
+import { DeleteCommand } from '../interactions/delete';
 import { InviteBotCommand } from '../interactions/inviteBot';
 import { ListCommand } from '../interactions/list';
 import { INTERACTION_NO_HANDLER } from '../messages/messages';
@@ -19,6 +21,8 @@ export function handleCommands(interaction: Interaction) {
 		case InviteBotCommand.name:
 			return handleInviteBotCommand(interaction, transformInteraction<typeof InviteBotCommand>(args));
 
+		case DeleteCommand.name:
+			return handleDeleteCommand(interaction, transformInteraction<typeof DeleteCommand>(args));
 		case ListCommand.name:
 			return handleListCommand(interaction);
 
