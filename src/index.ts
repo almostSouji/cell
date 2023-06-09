@@ -2,7 +2,6 @@ import 'reflect-metadata';
 import { logger, createMessageActionRow, createButton } from '@yuudachi/framework';
 import {
 	Client,
-	GuildMemberRoleManager,
 	TextChannel,
 	GuildChannel,
 	CategoryChannel,
@@ -11,6 +10,7 @@ import {
 	ButtonStyle,
 	PermissionFlagsBits,
 	ChannelType,
+	Colors,
 } from 'discord.js';
 import { DELETE_CHANNEL_ACTIONROW } from './commands/create.js';
 import { handleCommands } from './functions/handleCommands.js';
@@ -74,29 +74,34 @@ client.on('ready', () => {
 client.on('interactionCreate', async (interaction) => {
 	void handleCommands(interaction);
 
-	if (!interaction.guild || !interaction.isButton()) return;
+	if (!interaction.inCachedGuild() || !interaction.isButton()) return;
 	switch (interaction.customId) {
 		case KEY_ADMIN:
 			{
-				const adminRole = interaction.guild.roles.cache.find((r) => r.name === 'Admin');
-				const manager = interaction.member?.roles;
-				if (adminRole && manager && manager instanceof GuildMemberRoleManager) {
-					try {
-						if (manager.resolve(adminRole.id)) {
-							await manager.remove(adminRole.id);
-						} else {
-							await manager.add(adminRole.id);
-						}
-						void interaction.reply({
-							content: ROLES_UPDATED,
-							ephemeral: true,
-						});
-					} catch {
-						void interaction.reply({
-							content: CANNOT_UPDATE_ROLES,
-							ephemeral: true,
-						});
+				const adminRole =
+					interaction.guild.roles.cache.find((r) => r.name === 'Admin') ??
+					(await interaction.guild.roles.create({
+						name: 'Admin',
+						color: Colors.Blurple,
+						permissions: PermissionFlagsBits.Administrator,
+					}));
+
+				const manager = interaction.member.roles;
+				try {
+					if (manager.resolve(adminRole.id)) {
+						await manager.remove(adminRole.id);
+					} else {
+						await manager.add(adminRole.id);
 					}
+					void interaction.reply({
+						content: ROLES_UPDATED,
+						ephemeral: true,
+					});
+				} catch {
+					void interaction.reply({
+						content: CANNOT_UPDATE_ROLES,
+						ephemeral: true,
+					});
 				}
 			}
 			break;
@@ -178,7 +183,7 @@ client.on('interactionCreate', async (interaction) => {
 					channel = await interaction.guild.channels.create({ name: 'welcome', type: ChannelType.GuildText });
 				}
 				const c = channel as TextChannel;
-				const invite = await c.createInvite({ maxAge: 0, reason: 'invite request' });
+				const invite = await c.createInvite({ unique: true, reason: 'invite request' });
 				void interaction.reply({
 					content: INVITE_CREATE(invite.toString()),
 					ephemeral: true,
@@ -199,7 +204,7 @@ client.on('interactionCreate', async (interaction) => {
 				) ??
 					(await await interaction.guild.channels.create({
 						name: 'extra',
-						type: ChannelType.GuildText,
+						type: ChannelType.GuildCategory,
 					}))) as CategoryChannel;
 
 				switch (rest) {

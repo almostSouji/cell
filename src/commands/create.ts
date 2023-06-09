@@ -111,6 +111,7 @@ export async function handleCreateCommand(interaction: CommandInteraction, args:
 			],
 			icon: './box.png',
 		});
+
 		await guild.roles.create({
 			name: 'Admin',
 			color: Colors.Blurple,
@@ -127,13 +128,14 @@ export async function handleCreateCommand(interaction: CommandInteraction, args:
 			name: 'welcome',
 			type: ChannelType.GuildText,
 		});
-		const invite = await welcome.createInvite({
-			maxAge: 0,
-			maxUses: 0,
-			reason: 'Initial invite',
-			temporary: false,
-			unique: true,
-		});
+
+		const invite = await welcome
+			.createInvite({
+				reason: 'Initial invite',
+				temporary: true,
+				unique: true,
+			})
+			.catch(() => undefined);
 
 		const extra = await guild.channels.create({
 			name: 'extra',
@@ -228,7 +230,7 @@ export async function handleCreateCommand(interaction: CommandInteraction, args:
 			}
 		}
 
-		parts.push(ENTER_GUILD(invite.toString()));
+		parts.push(ENTER_GUILD(invite ? `[join \`${invite.code}\`](${invite.toString()})` : '`could not create invite`'));
 		await interaction.editReply({
 			content: parts.join('\n'),
 		});

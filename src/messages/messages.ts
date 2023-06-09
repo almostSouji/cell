@@ -13,7 +13,7 @@ export const APPLICATION_INVITE = (tag: string, id: string, invite: string) =>
 	`✓ Invite \`${tag}\` (${id}): [(invite application)](<${invite}>)`;
 export const JOIN_BEFORE_APP = '**Please make sure to join the server first and give yourself permissions!**';
 export const CHANNELS_OF_TYPE_ADDED = (num: number, type: string) => `✓ Added \`${num}\` channels of type \`${type}\``;
-export const ENTER_GUILD = (invite: string) => `✓ Your invite was created: ${invite}`;
+export const ENTER_GUILD = (invite: string) => `✓ Your sandbox was created: ${invite}`;
 export const CANNOT_DELETE = '✘ Cannot delete the sandbox.';
 export const CANNOT_UPDATE_ROLES = '✘ Cannot update roles.';
 export const ROLES_UPDATED = '✓ Roles updated.';

@@ -39,16 +39,19 @@ export async function handleListCommand(interaction: CommandInteraction) {
 
 		let invite = await guild.invites.fetch().then((i) => i.first());
 		if (!invite) {
-			invite = await welcome.createInvite({
-				maxAge: 0,
-				maxUses: 0,
-				reason: 'Initial invite',
-				temporary: false,
-				unique: true,
-			});
+			invite = await welcome
+				.createInvite({
+					reason: 'List invite',
+					unique: true,
+				})
+				.catch(() => undefined);
 		}
 
-		parts.push(`• \`${guild.name}\` \`${guild.id}\` [join guild](${invite.toString()})`);
+		parts.push(
+			`• \`${guild.name}\` \`${guild.id}\` ${
+				invite ? `[join \`${invite.code}\`](${invite.toString()})` : '`could not create invite`'
+			}`,
+		);
 	}
 
 	await interaction.editReply({
