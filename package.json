@@ -14,13 +14,13 @@
 		"lint": "eslint src --ext .ts",
 		"lint:fix": "eslint src --ext .ts --fix",
 		"prettier": "prettier --write **/*.{ts,js,json,yml,yaml}",
-		"deploy-commands": "env-cmd node dist/deployFunctions/deployCommands.js",
+		"deploy-commands": "env-cmd node --enable-source-maps dist/deployFunctions/deployCommands.js",
 		"prepare": "is-ci || husky install"
 	},
 	"type": "module",
 	"dependencies": {
 		"@yuudachi/framework": "^0.1.3",
-		"discord.js": "^14.11.0",
+		"discord.js": "^14.14.1",
 		"dotenv": "^16.0.3",
 		"env-cmd": "^10.1.0",
 		"node-fetch": "^3.3.0",
@@ -43,9 +43,10 @@
 		"lint-staged": "^13.0.4",
 		"prettier": "^2.8.0",
 		"rimraf": "^3.0.2",
-		"typescript": "^4.9.3"
+		"typescript": "^5.1.6"
 	},
 	"engines": {
 		"node": ">=16.0.0"
-	}
+	},
+	"packageManager": "yarn@3.6.1"
 }
