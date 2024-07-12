@@ -132,7 +132,6 @@ export async function handleCreateCommand(interaction: CommandInteraction, args:
 		const invite = await welcome
 			.createInvite({
 				reason: 'Initial invite',
-				temporary: true,
 				unique: true,
 			})
 			.catch(() => undefined);
@@ -165,6 +164,7 @@ export async function handleCreateCommand(interaction: CommandInteraction, args:
 			PermissionFlagsBits.Connect,
 			PermissionFlagsBits.Speak,
 			PermissionFlagsBits.ChangeNickname,
+			PermissionFlagsBits.UseApplicationCommands,
 		]);
 
 		if (args.textchannels) {
