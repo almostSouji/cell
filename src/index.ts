@@ -1,269 +1,405 @@
 import 'reflect-metadata';
-import { logger, createMessageActionRow, createButton } from '@yuudachi/framework';
+
+import fastifyHelmet from '@fastify/helmet';
+import fastifySensible from '@fastify/sensible';
+import fastify, { FastifyRequest } from 'fastify';
+import fastifyRawBody from 'fastify-raw-body';
+import { getVerifyRequest } from './utils/verify.js';
+import { logger } from './utils/logger.js';
+import process from 'node:process';
 import {
-	Client,
-	TextChannel,
-	GuildChannel,
-	CategoryChannel,
-	GatewayIntentBits,
-	ActivityType,
+	API,
+	APIInteraction,
+	APIInteractionResponsePong,
+	ApplicationCommandOptionType,
 	ButtonStyle,
-	PermissionFlagsBits,
 	ChannelType,
-	Colors,
-} from 'discord.js';
-import { DELETE_CHANNEL_ACTIONROW } from './commands/create.js';
-import { handleCommands } from './functions/handleCommands.js';
+	ComponentType,
+	InteractionResponseType,
+	InteractionType,
+	MessageFlags,
+	PermissionFlagsBits,
+} from '@discordjs/core';
+import { REST } from '@discordjs/rest';
+import { container } from 'tsyringe';
+import { AdminToggleCommand } from './interactions/admin.js';
+import { InviteAppCommand } from './interactions/invite.js';
+import { PanelCommand } from './interactions/panel.js';
 
-import { passOwnerEasteregg } from './functions/passOwnerEasteregg.js';
-import {
-	CREATE_PREFIX,
-	KEY_ADMIN,
-	KEY_CANCEL,
-	KEY_CONFIRM,
-	KEY_DELETE,
-	KEY_DELETE_CHANNEL,
-	KEY_INVITE,
-	SUFFIX_CATEGORY,
-	SUFFIX_NSFW,
-	SUFFIX_TEXT,
-	SUFFIX_VOICE,
-} from './keys.js';
-import {
-	CANCEL_DELETE,
-	CANNOT_DELETE,
-	CANNOT_UPDATE_ROLES,
-	DELETE_SURE,
-	INVITE_CREATE,
-	READY,
-	ROLES_UPDATED,
-} from './messages/messages.js';
+const server = fastify({ trustProxy: true, logger: true });
+await server.register(fastifyHelmet);
+await server.register(fastifySensible);
+await server.register(fastifyRawBody);
 
-export interface ProcessEnv {
-	DISCORD_TOKEN: string;
-	DISCORD_CLIENT_ID: string;
-	DEPLOY_GUILD_ID?: string;
+if (!process.env.DISCORD_PUBKEY) {
+	logger.error('Missing ENV value DISCORD_PUBKEY');
+	process.exit(1);
 }
 
-export enum OpCodes {
-	NOOP,
-	LIST,
-	REVIEW,
-	BAN,
-	DELETE,
-	PAGE_TRIGGER,
-}
+type DiscordFastifyGeneric = {
+	Headers: {
+		'x-signature-ed25519': string;
+		'x-signature-timestamp': string;
+	};
+};
 
-const client = new Client({
-	intents: [GatewayIntentBits.Guilds],
-	presence: {
-		activities: [
-			{
-				type: ActivityType.Watching,
-				name: 'over sandboxes',
-			},
-		],
-		status: 'online',
-	},
-});
+const verifyDiscord = getVerifyRequest(process.env.DISCORD_PUBKEY);
 
-client.on('ready', () => {
-	logger.info(READY(client.user!.tag, client.user!.id));
-});
+const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN!);
+container.register(REST, { useValue: rest });
 
-client.on('interactionCreate', async (interaction) => {
-	void handleCommands(interaction);
+const api = new API(rest);
+container.register(API, { useValue: api });
 
-	if (!interaction.inCachedGuild() || !interaction.isButton()) return;
-	switch (interaction.customId) {
-		case KEY_ADMIN:
-			{
-				const adminRole =
-					interaction.guild.roles.cache.find((r) => r.name === 'Admin') ??
-					(await interaction.guild.roles.create({
+server.post('/interactions', async (request: FastifyRequest<DiscordFastifyGeneric>) => {
+	if (!(await verifyDiscord(request))) {
+		// eslint-disable-next-line @typescript-eslint/no-throw-literal
+		throw { statusCode: 401, message: 'Invalid signature.' };
+	}
+
+	const body = request.body as APIInteraction;
+
+	if (body.type === InteractionType.Ping) {
+		return { type: InteractionResponseType.Pong } satisfies APIInteractionResponsePong;
+	}
+
+	try {
+		if (body.type === InteractionType.ApplicationCommand) {
+			const commandName = body.data.name;
+
+			if (commandName === PanelCommand.name) {
+				const showPanel = ('options' in body.data &&
+					body.data.options?.find((o) => o.name === PanelCommand.options[0].name)) || {
+					value: false,
+					type: ApplicationCommandOptionType.Boolean,
+				};
+
+				if (showPanel.type !== ApplicationCommandOptionType.Boolean) {
+					throw new Error('Options shape looks different than expected');
+				}
+
+				return api.interactions.reply(body.id, body.token, {
+					components: [
+						{
+							type: ComponentType.ActionRow,
+							components: [
+								{
+									type: ComponentType.Button,
+									style: ButtonStyle.Primary,
+									custom_id: 'ADMIN',
+									label: 'Toggle admin role',
+								},
+								{
+									type: ComponentType.Button,
+									style: ButtonStyle.Secondary,
+									custom_id: 'INVITE',
+									label: 'Show or create invite',
+								},
+							],
+						},
+						{
+							type: ComponentType.ActionRow,
+							components: [
+								{
+									type: ComponentType.Button,
+									style: ButtonStyle.Secondary,
+									custom_id: 'ADD_TEXT',
+									label: '+text',
+								},
+								{
+									type: ComponentType.Button,
+									style: ButtonStyle.Secondary,
+									custom_id: 'ADD_NSFW',
+									label: '+nsfw',
+								},
+								{
+									type: ComponentType.Button,
+									style: ButtonStyle.Secondary,
+									custom_id: 'ADD_VOICE',
+									label: '+voice',
+								},
+								{
+									type: ComponentType.Button,
+									style: ButtonStyle.Secondary,
+									custom_id: 'ADD_CATEGORY',
+									label: '+category',
+								},
+							],
+						},
+					],
+					flags: showPanel.value ? undefined : MessageFlags.Ephemeral,
+				});
+			}
+
+			if (commandName === AdminToggleCommand.name) {
+				const { roles, owner_id } = await api.guilds.get(body.guild_id!, { with_counts: true });
+				const appMember = await api.guilds.getMember(body.guild_id!, process.env.DISCORD_CLIENT_ID!);
+				const highestAppRole = roles
+					.filter((r) => appMember.roles.includes(r.id))
+					.toSorted((one, other) => (other.position = one.position))[0];
+
+				const appIsOwner = owner_id === process.env.DISCORD_CLIENT_ID!;
+				const highestAdminRoleAppCanAssign = roles
+					.toSorted((one, other) => other.position - one.position)
+					.find((r) => {
+						const isAdminRole = (BigInt(r.permissions) & PermissionFlagsBits.Administrator) !== 0n;
+						const passHierarchy = r.position < (highestAppRole?.position ?? 0);
+
+						return isAdminRole && (passHierarchy || appIsOwner);
+					});
+
+				if (!highestAdminRoleAppCanAssign) {
+					const newRole = await api.guilds.createRole(body.guild_id!, {
 						name: 'Admin',
-						color: Colors.Blurple,
-						permissions: PermissionFlagsBits.Administrator,
-					}));
-
-				const manager = interaction.member.roles;
-				try {
-					if (manager.resolve(adminRole.id)) {
-						await manager.remove(adminRole.id);
-					} else {
-						await manager.add(adminRole.id);
-					}
-					void interaction.reply({
-						content: ROLES_UPDATED,
-						ephemeral: true,
+						permissions: String(PermissionFlagsBits.Administrator),
+						color: 0xda3e44,
 					});
-				} catch {
-					void interaction.reply({
-						content: CANNOT_UPDATE_ROLES,
-						ephemeral: true,
+					await api.guilds.addRoleToMember(body.guild_id!, body.member!.user.id, newRole.id, {
+						reason: 'Requested through Admin toggle',
+					});
+
+					return api.interactions.reply(body.id, body.token, {
+						content: `Added <@&${newRole.id}> (the admin role created just for you).`,
+						flags: MessageFlags.Ephemeral,
 					});
 				}
-			}
-			break;
-		case KEY_DELETE: {
-			if (interaction.guildId === '1045039086840324136') {
-				await interaction.reply({
-					content: 'No, I still need this!',
-					ephemeral: true,
+
+				const memberHasRole = body.member?.roles.includes(highestAdminRoleAppCanAssign.id) ?? false;
+				if (memberHasRole) {
+					await api.guilds.removeRoleFromMember(body.guild_id!, body.member!.user.id, highestAdminRoleAppCanAssign.id, {
+						reason: 'Requested through Admin toggle',
+					});
+					return api.interactions.reply(body.id, body.token, {
+						content: `Removed <@&${highestAdminRoleAppCanAssign.id}> (the highest admin role that the app can assign).`,
+						flags: MessageFlags.Ephemeral,
+					});
+				}
+
+				await api.guilds.addRoleToMember(body.guild_id!, body.member!.user.id, highestAdminRoleAppCanAssign.id, {
+					reason: 'Requested through Admin toggle',
 				});
-				return;
+				return api.interactions.reply(body.id, body.token, {
+					content: `Added <@&${highestAdminRoleAppCanAssign.id}> (the highest admin role that the app can assign).`,
+					flags: MessageFlags.Ephemeral,
+				});
 			}
-			void interaction.reply({
-				content: DELETE_SURE,
-				ephemeral: true,
-				components: [
-					createMessageActionRow([
-						createButton({
-							customId: KEY_CANCEL,
-							label: 'No, stop!',
-							style: ButtonStyle.Primary,
-						}),
-						createButton({
-							customId: KEY_CONFIRM,
-							label: 'Yes, delete the sandbox (irreversible)!',
-							style: ButtonStyle.Danger,
-						}),
-					]),
-				],
+
+			if (commandName === InviteAppCommand.name && 'resolved' in body.data && 'options' in body.data) {
+				const resolved = body.data.resolved;
+				const options = body.data.options;
+				const targetUser = options?.find((o) => o.name === InviteAppCommand.options[0].name);
+				const inviteAsBot = options?.find((o) => o.name === InviteAppCommand.options[1].name);
+
+				console.dir({ targetUser, inviteAsBot }, { depth: null });
+
+				if (
+					!resolved ||
+					(resolved && !('users' in resolved)) ||
+					!targetUser ||
+					targetUser.type !== ApplicationCommandOptionType.User ||
+					!inviteAsBot ||
+					inviteAsBot.type !== ApplicationCommandOptionType.Boolean
+				) {
+					throw new Error('Options shape looks different than expected');
+				}
+
+				const resolvedUser = resolved.users?.[targetUser.value];
+
+				if (!resolvedUser) {
+					throw new Error('Could not resolve target user.');
+				}
+
+				const scopeDependentSuffix = inviteAsBot.value ? `&scope=bot` : `&scope=applications.commands`;
+				const invite = `https://discordapp.com/oauth2/authorize?client_id=${resolvedUser.id}${scopeDependentSuffix}`;
+
+				console.dir({ selectedUserSnowflake: targetUser }, { depth: null });
+				return api.interactions.reply(body.id, body.token, {
+					content: `Here's the invite: [invite](${invite})!${inviteAsBot.value ? '-# You will have to give it roles to grant permissions.' : ''}`,
+					flags: MessageFlags.Ephemeral,
+				});
+			}
+		}
+
+		if (body.type === InteractionType.MessageComponent) {
+			const componentName = body.data.custom_id;
+
+			if (componentName === 'DELETE') {
+				return api.interactions.reply(body.id, body.token, {
+					content: `I cannot do that anymore ._.`,
+					flags: MessageFlags.Ephemeral,
+				});
+			}
+
+			if (componentName === 'DELETE_CHANNEL') {
+				await api.interactions.reply(body.id, body.token, {
+					content: 'OK! Deleting this channel!\n-# If nothing happenes something went wrong, i guess',
+					flags: MessageFlags.Ephemeral,
+				});
+
+				await api.channels.delete(body.channel.id);
+			}
+
+			if (componentName.startsWith('ADD')) {
+				const channelType = componentName.split('_')[1] ?? 'TEXT';
+				const channel = await api.guilds.createChannel(body.guild_id!, {
+					type: ['TEXT', 'NSFW'].includes(channelType)
+						? ChannelType.GuildText
+						: channelType === 'VOICE'
+							? ChannelType.GuildVoice
+							: channelType === 'CATEGORY'
+								? ChannelType.GuildCategory
+								: ChannelType.GuildText,
+					name: channelType.toLowerCase(),
+					nsfw: channelType === 'NSFW',
+				});
+
+				if (['TEXT', 'VOICE', 'NSFW'].includes(channelType)) {
+					await api.channels.createMessage(channel.id, {
+						components: [
+							{
+								type: ComponentType.ActionRow,
+								components: [
+									{
+										type: ComponentType.Button,
+										custom_id: 'DELETE_CHANNEL',
+										style: ButtonStyle.Danger,
+										label: 'DELETE',
+									},
+								],
+							},
+						],
+					});
+				}
+
+				return api.interactions.reply(body.id, body.token, {
+					content: `Created a ${channelType.toLowerCase()} channel for you: <#${channel.id}>.`,
+					flags: MessageFlags.Ephemeral,
+				});
+			}
+
+			if (componentName === 'INVITE') {
+				const invites = await api.guilds.getInvites(body.guild_id!);
+				const invite = invites[0];
+
+				if (!invite) {
+					const guildChannels = await api.guilds.getChannels(body.guild_id!);
+					const channel = guildChannels.find((c) =>
+						[
+							ChannelType.GuildText,
+							ChannelType.GuildVoice,
+							ChannelType.GuildForum,
+							ChannelType.GuildAnnouncement,
+							ChannelType.GuildStageVoice,
+						].includes(c.type),
+					);
+
+					if (!channel) {
+						return api.interactions.reply(body.id, body.token, {
+							content: 'There are no invites and found no channel to create an invite on.',
+							flags: MessageFlags.Ephemeral,
+						});
+					}
+
+					const invite = await api.channels.createInvite(channel.id, {
+						max_uses: 0,
+						temporary: false,
+						unique: false,
+						max_age: 0,
+					});
+
+					return api.interactions.reply(body.id, body.token, {
+						content: `Created an invite for you! [\`${invite.code}\`](https://discord.com/invite/${invite.code})`,
+						flags: MessageFlags.Ephemeral,
+					});
+				}
+
+				return api.interactions.reply(body.id, body.token, {
+					content: `Here is your invite! [\`${invite.code}\`](https://discord.com/invite/${invite.code})`,
+					flags: MessageFlags.Ephemeral,
+				});
+			}
+
+			if (componentName === 'ADMIN') {
+				const { roles, owner_id } = await api.guilds.get(body.guild_id!, { with_counts: true });
+				const appMember = await api.guilds.getMember(body.guild_id!, process.env.DISCORD_CLIENT_ID!);
+				const highestAppRole = roles
+					.filter((r) => appMember.roles.includes(r.id))
+					.toSorted((one, other) => (other.position = one.position))[0];
+
+				const appIsOwner = owner_id === process.env.DISCORD_CLIENT_ID!;
+				const highestAdminRoleAppCanAssign = roles
+					.toSorted((one, other) => other.position - one.position)
+					.find((r) => {
+						const isAdminRole = (BigInt(r.permissions) & PermissionFlagsBits.Administrator) !== 0n;
+						const passHierarchy = r.position < (highestAppRole?.position ?? 0);
+
+						return isAdminRole && (passHierarchy || appIsOwner);
+					});
+
+				if (!highestAdminRoleAppCanAssign) {
+					const newRole = await api.guilds.createRole(body.guild_id!, {
+						name: 'Admin',
+						permissions: String(PermissionFlagsBits.Administrator),
+						color: 0xda3e44,
+					});
+					await api.guilds.addRoleToMember(body.guild_id!, body.member!.user.id, newRole.id, {
+						reason: 'Requested through Admin toggle',
+					});
+
+					return api.interactions.reply(body.id, body.token, {
+						content: `Added <@&${newRole.id}> (the admin role created just for you).`,
+						flags: MessageFlags.Ephemeral,
+					});
+				}
+
+				const memberHasRole = body.member?.roles.includes(highestAdminRoleAppCanAssign.id) ?? false;
+				if (memberHasRole) {
+					await api.guilds.removeRoleFromMember(body.guild_id!, body.member!.user.id, highestAdminRoleAppCanAssign.id, {
+						reason: 'Requested through Admin toggle',
+					});
+					return api.interactions.reply(body.id, body.token, {
+						content: `Removed <@&${highestAdminRoleAppCanAssign.id}> (the highest admin role that the app can assign).`,
+						flags: MessageFlags.Ephemeral,
+					});
+				}
+
+				await api.guilds.addRoleToMember(body.guild_id!, body.member!.user.id, highestAdminRoleAppCanAssign.id, {
+					reason: 'Requested through Admin toggle',
+				});
+				return api.interactions.reply(body.id, body.token, {
+					content: `Added <@&${highestAdminRoleAppCanAssign.id}> (the highest admin role that the app can assign).`,
+					flags: MessageFlags.Ephemeral,
+				});
+			}
+		}
+
+		return undefined;
+	} catch (error_) {
+		const error = error_ as Error;
+
+		logger.error(error, error.message);
+
+		if (error.message === 'Unknown Guild') {
+			return api.interactions.reply(body.id, body.token, {
+				content: `\`🐞\` Well, that didn't work.\n-# Make sure the app has a bot user on this guild! If it isn't [invite it](<https://discordapp.com/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID!}&scope=bot>)!`,
+				flags: MessageFlags.Ephemeral,
 			});
-			break;
 		}
-		case KEY_CONFIRM:
-			try {
-				await interaction.update({
-					content: 'Deletion in progress...',
-					components: [],
-				});
-				await interaction.guild.delete();
-			} catch {
-				if (interaction.replied) {
-					void interaction.update({
-						content: CANNOT_DELETE,
-						components: [],
-					});
-				} else {
-					void interaction.reply({
-						content: CANNOT_DELETE,
-						components: [],
-					});
-				}
-			}
-			break;
-		case KEY_CANCEL:
-			void interaction.update({
-				content: CANCEL_DELETE,
-				components: [],
+
+		if (error.message === 'Missing Permissions') {
+			return api.interactions.reply(body.id, body.token, {
+				content: `\`🐛\` Well, that didn't work.\n-# This app is made to toggle admin roles and help orchestrate test servers, it works best with a very high role and the \`ADMINISTRATOR\` \`8\` permission. Don't use this app if you don't trust it. Again, it is made for test servers, not production use!`,
+				flags: MessageFlags.Ephemeral,
 			});
-			break;
-		case KEY_INVITE: {
-			const invites = await interaction.guild.invites.fetch();
-			const invite = invites.first();
-			if (invite) {
-				void interaction.reply({
-					content: INVITE_CREATE(invite.toString()),
-					ephemeral: true,
-				});
-			} else {
-				let channel = interaction.guild.channels.cache.find(
-					(c) =>
-						(c
-							.permissionsFor(client.user!)
-							?.has([PermissionFlagsBits.CreateInstantInvite, PermissionFlagsBits.ViewChannel]) &&
-							c.isTextBased() &&
-							!c.isThread()) ??
-						false,
-				);
-
-				if (!channel) {
-					channel = await interaction.guild.channels.create({ name: 'welcome', type: ChannelType.GuildText });
-				}
-				const c = channel as TextChannel;
-				const invite = await c.createInvite({ unique: true, reason: 'invite request' });
-				void interaction.reply({
-					content: INVITE_CREATE(invite.toString()),
-					ephemeral: true,
-				});
-			}
-			break;
 		}
-		case KEY_DELETE_CHANNEL:
-			await interaction.update({ content: '✓ Channel deletion in progress...', components: [] });
-			await interaction.channel?.delete();
-			break;
-		default: {
-			const rest = interaction.customId.split(`${CREATE_PREFIX}_`)[1];
-			let channel: GuildChannel;
-			try {
-				const extra = (interaction.guild.channels.cache.find(
-					(c) => c.name === 'extra' && c.type === ChannelType.GuildCategory,
-				) ??
-					(await await interaction.guild.channels.create({
-						name: 'extra',
-						type: ChannelType.GuildCategory,
-					}))) as CategoryChannel;
 
-				switch (rest) {
-					case SUFFIX_TEXT: {
-						const txtChannel = await interaction.guild.channels.create({
-							name: SUFFIX_TEXT.toLowerCase(),
-							type: ChannelType.GuildText,
-							parent: extra,
-						});
-						channel = txtChannel;
-						void txtChannel.send({
-							content: '\u200B',
-							components: [DELETE_CHANNEL_ACTIONROW],
-						});
-						break;
-					}
-					case SUFFIX_NSFW: {
-						const txtChannel = await interaction.guild.channels.create({
-							name: SUFFIX_NSFW.toLowerCase(),
-							type: ChannelType.GuildText,
-							parent: extra,
-							nsfw: true,
-						});
-						channel = txtChannel;
-						void txtChannel.send({
-							content: '\u200B',
-							components: [DELETE_CHANNEL_ACTIONROW],
-						});
-						break;
-					}
-					case SUFFIX_VOICE:
-						channel = await interaction.guild.channels.create({
-							name: SUFFIX_VOICE.toLowerCase(),
-							type: ChannelType.GuildVoice,
-							parent: extra,
-						});
-						break;
-					case SUFFIX_CATEGORY:
-						channel = await interaction.guild.channels.create({
-							name: SUFFIX_CATEGORY.toLowerCase(),
-							type: ChannelType.GuildCategory,
-						});
-						break;
-					default:
-						logger.info(`Unknown switch option ${rest ?? 'undefined'}.`);
-				}
-
-				void interaction.reply({
-					content: `✓ Created ${rest ?? 'undefined'} channel <#${channel!.id}>.`,
-					ephemeral: true,
-				});
-			} catch (e) {
-				const error = e as Error;
-				logger.error(error, error.message);
-			}
-		}
+		return api.interactions.reply(body.id, body.token, {
+			content: `\`🪲\` Well, that didn't work. \`${error.message}\``,
+			flags: MessageFlags.Ephemeral,
+		});
 	}
 });
 
-passOwnerEasteregg(client);
-
-void client.login();
+await server.listen({
+	port: Number(process.env.PORT!),
+});
