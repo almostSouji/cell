@@ -214,7 +214,7 @@ server.post('/interactions', async (request: FastifyRequest<DiscordFastifyGeneri
 
 				console.dir({ selectedUserSnowflake: targetUser }, { depth: null });
 				return api.interactions.reply(body.id, body.token, {
-					content: `Here's the invite: [invite](${invite})!${inviteAsBot.value ? '-# You will have to give it roles to grant permissions.' : ''}`,
+					content: `Here's the invite: [invite](${invite})!${inviteAsBot.value ? '\n-# You will have to give it roles to grant permissions.' : ''}`,
 					flags: MessageFlags.Ephemeral,
 				});
 			}
