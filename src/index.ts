@@ -10,6 +10,8 @@ import process from 'node:process';
 import {
 	API,
 	APIInteraction,
+	APIRole,
+	APIGuildMember,
 	APIInteractionResponsePong,
 	ApplicationCommandOptionType,
 	ButtonStyle,
@@ -42,6 +44,72 @@ type DiscordFastifyGeneric = {
 		'x-signature-timestamp': string;
 	};
 };
+
+function compareRoles(one: APIRole, other: APIRole) {
+	if (one.position === other.position) {
+		return Number(BigInt(other.id) - BigInt(one.id));
+	}
+
+	return other.position - one.position;
+}
+
+async function toggleAdmin(
+	interactionId: string,
+	interactionToken: string,
+	guildId: string,
+	roles: APIRole[],
+	appMember: APIGuildMember,
+	commandMember: APIGuildMember,
+) {
+	const highestAppRole = roles
+		.filter((r) => appMember.roles.includes(r.id))
+		.toSorted(compareRoles)
+		.at(0)!;
+
+	const highestAdminRoleAppCanAssign = roles.toSorted(compareRoles).find((r) => {
+		const isAdminRole = (BigInt(r.permissions) & PermissionFlagsBits.Administrator) !== 0n;
+		const hierarchy = compareRoles(r, highestAppRole);
+		const passHierarchy = hierarchy > 0;
+
+		return isAdminRole && passHierarchy;
+	});
+
+	if (!highestAdminRoleAppCanAssign) {
+		const newRole = await api.guilds.createRole(guildId, {
+			name: 'Admin',
+			permissions: String(PermissionFlagsBits.Administrator),
+			color: 0xda3e44,
+		});
+		await api.guilds.addRoleToMember(guildId, commandMember.user.id, newRole.id, {
+			reason: 'Requested through Admin toggle',
+		});
+
+		return api.interactions.reply(interactionId, interactionToken, {
+			content: `Added <@&${newRole.id}> (the admin role created just for you).`,
+			flags: MessageFlags.Ephemeral,
+		});
+	}
+
+	const memberHasRole = commandMember.roles.includes(highestAdminRoleAppCanAssign.id);
+
+	if (memberHasRole) {
+		await api.guilds.removeRoleFromMember(guildId, commandMember.user.id, highestAdminRoleAppCanAssign.id, {
+			reason: 'Requested through Admin toggle',
+		});
+		return api.interactions.reply(interactionId, interactionToken, {
+			content: `Removed <@&${highestAdminRoleAppCanAssign.id}> (the highest admin role that the app can assign).`,
+			flags: MessageFlags.Ephemeral,
+		});
+	}
+
+	await api.guilds.addRoleToMember(guildId, commandMember.user.id, highestAdminRoleAppCanAssign.id, {
+		reason: 'Requested through Admin toggle',
+	});
+	return api.interactions.reply(interactionId, interactionToken, {
+		content: `Added <@&${highestAdminRoleAppCanAssign.id}> (the highest admin role that the app can assign).`,
+		flags: MessageFlags.Ephemeral,
+	});
+}
 
 const verifyDiscord = getVerifyRequest(process.env.DISCORD_PUBKEY);
 
@@ -132,56 +200,10 @@ server.post('/interactions', async (request: FastifyRequest<DiscordFastifyGeneri
 			}
 
 			if (commandName === AdminToggleCommand.name) {
-				const { roles, owner_id } = await api.guilds.get(body.guild_id!, { with_counts: true });
+				const { roles } = await api.guilds.get(body.guild_id!, { with_counts: true });
 				const appMember = await api.guilds.getMember(body.guild_id!, process.env.DISCORD_CLIENT_ID!);
-				const highestAppRole = roles
-					.filter((r) => appMember.roles.includes(r.id))
-					.toSorted((one, other) => (other.position = one.position))[0];
 
-				const appIsOwner = owner_id === process.env.DISCORD_CLIENT_ID!;
-				const highestAdminRoleAppCanAssign = roles
-					.toSorted((one, other) => other.position - one.position)
-					.find((r) => {
-						const isAdminRole = (BigInt(r.permissions) & PermissionFlagsBits.Administrator) !== 0n;
-						const passHierarchy = r.position < (highestAppRole?.position ?? 0);
-
-						return isAdminRole && (passHierarchy || appIsOwner);
-					});
-
-				if (!highestAdminRoleAppCanAssign) {
-					const newRole = await api.guilds.createRole(body.guild_id!, {
-						name: 'Admin',
-						permissions: String(PermissionFlagsBits.Administrator),
-						color: 0xda3e44,
-					});
-					await api.guilds.addRoleToMember(body.guild_id!, body.member!.user.id, newRole.id, {
-						reason: 'Requested through Admin toggle',
-					});
-
-					return api.interactions.reply(body.id, body.token, {
-						content: `Added <@&${newRole.id}> (the admin role created just for you).`,
-						flags: MessageFlags.Ephemeral,
-					});
-				}
-
-				const memberHasRole = body.member?.roles.includes(highestAdminRoleAppCanAssign.id) ?? false;
-				if (memberHasRole) {
-					await api.guilds.removeRoleFromMember(body.guild_id!, body.member!.user.id, highestAdminRoleAppCanAssign.id, {
-						reason: 'Requested through Admin toggle',
-					});
-					return api.interactions.reply(body.id, body.token, {
-						content: `Removed <@&${highestAdminRoleAppCanAssign.id}> (the highest admin role that the app can assign).`,
-						flags: MessageFlags.Ephemeral,
-					});
-				}
-
-				await api.guilds.addRoleToMember(body.guild_id!, body.member!.user.id, highestAdminRoleAppCanAssign.id, {
-					reason: 'Requested through Admin toggle',
-				});
-				return api.interactions.reply(body.id, body.token, {
-					content: `Added <@&${highestAdminRoleAppCanAssign.id}> (the highest admin role that the app can assign).`,
-					flags: MessageFlags.Ephemeral,
-				});
+				await toggleAdmin(body.id, body.token, body.guild_id!, roles, appMember, body.member!);
 			}
 
 			if (commandName === InviteAppCommand.name && 'resolved' in body.data && 'options' in body.data) {
@@ -320,56 +342,10 @@ server.post('/interactions', async (request: FastifyRequest<DiscordFastifyGeneri
 			}
 
 			if (componentName === 'ADMIN') {
-				const { roles, owner_id } = await api.guilds.get(body.guild_id!, { with_counts: true });
+				const { roles } = await api.guilds.get(body.guild_id!, { with_counts: true });
 				const appMember = await api.guilds.getMember(body.guild_id!, process.env.DISCORD_CLIENT_ID!);
-				const highestAppRole = roles
-					.filter((r) => appMember.roles.includes(r.id))
-					.toSorted((one, other) => (other.position = one.position))[0];
 
-				const appIsOwner = owner_id === process.env.DISCORD_CLIENT_ID!;
-				const highestAdminRoleAppCanAssign = roles
-					.toSorted((one, other) => other.position - one.position)
-					.find((r) => {
-						const isAdminRole = (BigInt(r.permissions) & PermissionFlagsBits.Administrator) !== 0n;
-						const passHierarchy = r.position < (highestAppRole?.position ?? 0);
-
-						return isAdminRole && (passHierarchy || appIsOwner);
-					});
-
-				if (!highestAdminRoleAppCanAssign) {
-					const newRole = await api.guilds.createRole(body.guild_id!, {
-						name: 'Admin',
-						permissions: String(PermissionFlagsBits.Administrator),
-						color: 0xda3e44,
-					});
-					await api.guilds.addRoleToMember(body.guild_id!, body.member!.user.id, newRole.id, {
-						reason: 'Requested through Admin toggle',
-					});
-
-					return api.interactions.reply(body.id, body.token, {
-						content: `Added <@&${newRole.id}> (the admin role created just for you).`,
-						flags: MessageFlags.Ephemeral,
-					});
-				}
-
-				const memberHasRole = body.member?.roles.includes(highestAdminRoleAppCanAssign.id) ?? false;
-				if (memberHasRole) {
-					await api.guilds.removeRoleFromMember(body.guild_id!, body.member!.user.id, highestAdminRoleAppCanAssign.id, {
-						reason: 'Requested through Admin toggle',
-					});
-					return api.interactions.reply(body.id, body.token, {
-						content: `Removed <@&${highestAdminRoleAppCanAssign.id}> (the highest admin role that the app can assign).`,
-						flags: MessageFlags.Ephemeral,
-					});
-				}
-
-				await api.guilds.addRoleToMember(body.guild_id!, body.member!.user.id, highestAdminRoleAppCanAssign.id, {
-					reason: 'Requested through Admin toggle',
-				});
-				return api.interactions.reply(body.id, body.token, {
-					content: `Added <@&${highestAdminRoleAppCanAssign.id}> (the highest admin role that the app can assign).`,
-					flags: MessageFlags.Ephemeral,
-				});
+				await toggleAdmin(body.id, body.token, body.guild_id!, roles, appMember, body.member!);
 			}
 		}
 
